@@ -283,12 +283,6 @@ impl Linker {
             }
         }
 
-        if let Some(path) = &self.options.dump_module {
-            // dump IR for the final linked module for debugging purposes
-            let path = CString::new(path.as_os_str().to_str().unwrap()).unwrap();
-            self.write_ir(&path)?;
-        }
-
         Ok(())
     }
 
@@ -386,6 +380,17 @@ impl Linker {
     }
 
     fn optimize(&mut self) -> Result<(), LinkerError> {
+        if let Some(path) = &self.options.dump_module {
+            // dump IR before optimization
+            let path = CString::new(
+                path.with_extension("pre-opt.ll")
+                    .as_os_str()
+                    .to_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            self.write_ir(&path)?;
+        };
         if !self.options.disable_memory_builtins {
             self.options.export_symbols.extend(
                 ["memcpy", "memmove", "memset", "memcmp", "bcmp"]
@@ -399,7 +404,10 @@ impl Linker {
         );
         // run optimizations. Will optionally remove noinline attributes, intern all non exported
         // programs and maps and remove dead code.
+
         unsafe {
+            llvm::DIFix::new(self.context, self.module).run();
+
             llvm::optimize(
                 self.target_machine,
                 self.module,
@@ -414,6 +422,12 @@ impl Linker {
 
     fn codegen(&mut self) -> Result<(), LinkerError> {
         let output = CString::new(self.options.output.as_os_str().to_str().unwrap()).unwrap();
+
+        if let Some(path) = &self.options.dump_module {
+            // dump IR for the final linked module for debugging purposes
+            let path = CString::new(path.as_os_str().to_str().unwrap()).unwrap();
+            self.write_ir(&path)?;
+        };
 
         match self.options.output_type {
             OutputType::Bitcode => self.write_bitcode(&output),
