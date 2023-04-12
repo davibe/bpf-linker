@@ -174,7 +174,7 @@ fn dw_tag_from_str(tag: &str) -> Option<DwTag> {
         "DW_TAG_BORLAND_Delphi_dynamic_array" => DW_TAG_BORLAND_Delphi_dynamic_array,
         "DW_TAG_BORLAND_Delphi_set" => DW_TAG_BORLAND_Delphi_set,
         "DW_TAG_BORLAND_Delphi_variant" => DW_TAG_BORLAND_Delphi_variant,
-        _ => return None
+        _ => return None,
     };
     Some(result)
 }

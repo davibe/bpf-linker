@@ -21,9 +21,7 @@ impl Message {
     }
 
     pub fn from_ptr(ptr: *mut ::libc::c_char) -> Self {
-        Message {
-            ptr
-        }
+        Message { ptr }
     }
 
     pub fn is_empty(&self) -> bool {
