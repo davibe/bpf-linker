@@ -1,12 +1,9 @@
-use super::dw_tag::dw_tag_from_value_str;
 use super::message::Message;
 use super::symbol_name;
 use crate::llvm::iter::*;
 use crate::llvm::to_string;
 use gimli::constants::DwTag;
-use gimli::DW_TAG_pointer_type;
-use gimli::DW_TAG_structure_type;
-use gimli::DW_TAG_variant_part;
+use gimli::{DW_TAG_pointer_type, DW_TAG_structure_type, DW_TAG_variant_part};
 use llvm_sys::core::*;
 use llvm_sys::debuginfo::*;
 use llvm_sys::prelude::*;
@@ -53,14 +50,13 @@ impl DIFix {
 
         match metadata_kind {
             LLVMMetadataKind::LLVMDICompositeTypeMetadataKind => {
-                let tag = get_tag(value);
+                let tag = get_tag(metadata);
 
                 #[allow(non_upper_case_globals)]
                 match tag {
-                    Some(DW_TAG_structure_type) => {
+                    DW_TAG_structure_type => {
                         let mut len = 0;
-                        let name =
-                            to_string(LLVMDITypeGetName(LLVMValueAsMetadata(value), &mut len));
+                        let name = to_string(LLVMDITypeGetName(metadata, &mut len));
 
                         if name.starts_with("HashMap<") {
                             // Remove name from BTF map structs.
@@ -80,18 +76,16 @@ impl DIFix {
                         let num_elements = LLVMGetNumOperands(elements);
                         if num_elements > 0 {
                             let element = LLVMGetOperand(elements, 0);
-                            if get_tag(element) == Some(DW_TAG_variant_part) {
+                            let tag = get_tag(LLVMValueAsMetadata(element));
+                            if tag == DW_TAG_variant_part {
                                 let link = "http://none-yet";
 
                                 let mut len = 0;
-                                let name = to_string(LLVMDITypeGetName(
-                                    LLVMValueAsMetadata(value),
-                                    &mut len,
-                                ));
+                                let name = to_string(LLVMDITypeGetName(metadata, &mut len));
 
                                 // TODO: check: the following always returns <unknown>:0 - however its strange...
                                 let mut _len = 0;
-                                let _line = LLVMDITypeGetLine(LLVMValueAsMetadata(value)); // always returns 0
+                                let _line = LLVMDITypeGetLine(metadata); // always returns 0
                                 let scope = LLVMDIVariableGetScope(metadata);
                                 let file = LLVMDIScopeGetFile(scope);
                                 let mut len = 0;
@@ -154,11 +148,11 @@ impl DIFix {
                 }
             }
             LLVMMetadataKind::LLVMDIDerivedTypeMetadataKind => {
-                let tag = get_tag(value);
+                let tag = get_tag(metadata);
 
                 #[allow(non_upper_case_globals)]
                 match tag {
-                    Some(DW_TAG_pointer_type) => {
+                    DW_TAG_pointer_type => {
                         // remove rust names
                         LLVMReplaceMDNodeOperandWith(value, 2, empty);
                     }
@@ -356,11 +350,8 @@ unsafe fn can_get_operands(v: LLVMValueRef) -> bool {
     is_mdnode(v) || is_user(v)
 }
 
-unsafe fn get_tag(v: LLVMValueRef) -> Option<DwTag> {
-    let msg = Message::from_ptr(LLVMPrintValueToString(v));
-    let value_as_string = msg.to_str().unwrap_or("");
-    let tag = dw_tag_from_value_str(value_as_string);
-    tag
+unsafe fn get_tag(v: LLVMMetadataRef) -> DwTag {
+    DwTag(LLVMGetDINodeTag(v))
 }
 
 fn indent(depth: usize) -> String {

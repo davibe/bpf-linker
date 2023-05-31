@@ -481,8 +481,7 @@ checksum = "b64f40e5e03e0d54f03845c8197d0291253cdbedfb1cb46b13c2c117554a9f4c"
 [[package]]
 name = "llvm-sys"
 version = "160.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c23bd4905c97f88d0dfec97095829f4ac7eff8ce28fec74a8f8eb8e64830a86e"
+source = "git+https://github.com/aya-rs/llvm-sys.rs.git?branch=add-replace-md-operand#09c1bf4dc5b2e73806070b5867323c44ccd2fa31"
 dependencies = [
  "cc",
  "lazy_static",
@@ -1042,8 +1041,3 @@ name = "windows_x86_64_msvc"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
-
-[[patch.unused]]
-name = "llvm-sys"
-version = "160.0.2"
-source = "git+https://github.com/davibe/llvm-sys.rs.git?branch=add-replace-md-operand#fe9fd58592382c915b8ffc8ac27b4ca235b560fe"
