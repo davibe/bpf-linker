@@ -12,6 +12,86 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  llvm:
+    runs-on: ubuntu-20.04
+    name: llvm
+    steps:
+      - name: Cache
+        id: cache-llvm
+        uses: actions/cache@v3
+        with:
+          path: llvm-install
+          key: llvm-2
+          lookup-only: true
+
+      - name: Install Tools
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+            gpg --dearmor - | \
+            sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal main' | \
+            sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo -e deb http://apt.llvm.org/focal/ llvm-toolchain-focal main | sudo tee /etc/apt/sources.list.d/llvm.list
+
+          sudo apt-get update
+          sudo apt-get -y install cmake ninja-build clang lld
+
+      - name: Checkout LLVM Source
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        uses: actions/checkout@v3
+        with:
+          repository: aya-rs/llvm-project
+          ref: rustc/16.0-2023-06-05
+          path: llvm-project
+
+      - name: Configure LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          cmake \
+            -S llvm-project/llvm \
+            -B llvm-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/llvm-install" \
+            -DLLVM_ENABLE_ASSERTIONS=ON \
+            -DLLVM_ENABLE_PROJECTS= \
+            -DLLVM_ENABLE_RUNTIMES= \
+            -DLLVM_INSTALL_UTILS=ON \
+            -DLLVM_TARGETS_TO_BUILD=BPF \
+            -DLLVM_USE_LINKER=lld
+
+      - name: Install LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        env:
+          # Create symlinks rather than copies to conserve disk space. At the time of this writing,
+          # GitHub-hosted runners have 14GB of SSD space
+          # (https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources).
+          #
+          # Since the LLVM build creates a bunch of symlinks (and this setting does not turn those
+          # into symlinks-to-symlinks), use absolute symlinks so we can distinguish the two cases.
+          CMAKE_INSTALL_MODE: ABS_SYMLINK
+        run: cmake --build llvm-build --target install
+
+      - name: Rewrite LLVM Symlinks
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        # Move targets over the symlinks that point to them.
+        #
+        # This whole dance would be simpler if CMake supported CMAKE_INSTALL_MODE=MOVE.
+        run: |
+          find llvm-install -type l -execdir sh -eux -c '
+            for link in "$@"; do
+              target=$(readlink "$link")
+              case $target in
+                /*) mv "$target" "$link" ;;
+              esac
+            done
+          ' sh {} +
+
   build:
     runs-on: ubuntu-20.04
     strategy:
@@ -24,6 +104,7 @@ jobs:
         llvm:
           - 16
     name: rustc=${{ matrix.rust }} llvm=${{ matrix.llvm }}
+    needs: llvm
 
     env:
       RUST_BACKTRACE: full
@@ -47,13 +128,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check (default features, no system LLVM)
+        if: ${{ false }} # TODO: remove this when https://reviews.llvm.org/D136637, https://reviews.llvm.org/D138415, and https://reviews.llvm.org/D154630 are included in rustc's LLVM.
         run: cargo check
 
       - name: Build (default features, no system LLVM)
+        if: ${{ false }} # TODO: remove this when https://reviews.llvm.org/D136637, https://reviews.llvm.org/D138415, and https://reviews.llvm.org/D154630 are included in rustc's LLVM.
         run: cargo build
 
       - name: Install LLVM
-        shell: bash
+        if: ${{ false }} # TODO: remove this when https://reviews.llvm.org/D136637, https://reviews.llvm.org/D138415, and https://reviews.llvm.org/D154630 are included in rustc's LLVM.
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           echo -e deb http://apt.llvm.org/focal/ llvm-toolchain-focal-${{ matrix.llvm }} main | sudo tee /etc/apt/sources.list.d/llvm.list
@@ -64,25 +147,6 @@ jobs:
             libclang-${{ matrix.llvm }}-dev \
             libpolly-${{ matrix.llvm }}-dev
 
-      - uses: taiki-e/install-action@cargo-hack
-
-      - name: Check
-        run: cargo hack check --feature-powerset
-
-      - name: Build
-        run: cargo hack build --feature-powerset
-
-      - name: Test
-        if: matrix.rust == 'nightly'
-        run: cargo hack test --feature-powerset
-
-      - uses: actions/checkout@v3
-        if: matrix.rust == 'nightly'
-        with:
-          repository: aya-rs/aya
-          path: aya
-          submodules: recursive
-
       - name: Install dependencies
         if: matrix.rust == 'nightly'
         # ubuntu-20.04 comes with clang prior to
@@ -90,11 +154,51 @@ jobs:
         # __builtin_preserve_enum_value, used by relocation tests in aya.
         #
         # gcc-multilib provides at least <asm/types.h> which is referenced by libbpf.
-        run: sudo apt-get -y install clang-${{ matrix.llvm }} gcc-multilib
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo -e deb http://apt.llvm.org/focal/ llvm-toolchain-focal-${{ matrix.llvm }} main | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get -y install clang-${{ matrix.llvm }} gcc-multilib
 
       - name: Add clang-${{ matrix.llvm }} to PATH
         if: matrix.rust == 'nightly'
         run: echo /usr/lib/llvm-${{ matrix.llvm }}/bin >> $GITHUB_PATH
+
+      - name: Restore LLVM
+        id: cache-llvm
+        uses: actions/cache/restore@v3
+        with:
+          path: llvm-install
+          key: llvm-2
+          fail-on-cache-miss: true
+
+      - name: Add LLVM to PATH
+        run: |
+          echo "${{ github.workspace }}/llvm-install/bin" >> $GITHUB_PATH
+          echo "$PATH"
+
+      # TODO: Remove this when we're no longer building LLVM from source; llvm-sys statically links against LLVM, so we must not use the cache.
+      - name: Clean llvm-sys
+        run: cargo clean -p llvm-sys
+
+      - uses: taiki-e/install-action@cargo-hack
+
+      - name: Check
+        run: cargo hack check --feature-powerset
+
+      - name: Build
+        run: cargo hack build --feature-powerset --exclude-features rust-llvm
+
+      - name: Test
+        if: matrix.rust == 'nightly'
+        run: cargo hack test --feature-powerset --exclude-features rust-llvm
+
+      - uses: actions/checkout@v3
+        if: matrix.rust == 'nightly'
+        with:
+          repository: aya-rs/aya
+          path: aya
+          submodules: recursive
 
       - name: Install
         if: matrix.rust == 'nightly'

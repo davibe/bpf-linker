@@ -27,7 +27,7 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --workspace -- --deny warnings
+          cargo clippy --features rust-llvm --workspace -- --deny warnings
 
   lint-nightly:
     runs-on: ubuntu-20.04
