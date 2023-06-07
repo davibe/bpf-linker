@@ -54,6 +54,7 @@ impl DIFix {
             LLVMMetadataKind::LLVMDICompositeTypeMetadataKind => {
                 let tag = get_tag(metadata);
 
+                #[allow(clippy::single_match)]
                 #[allow(non_upper_case_globals)]
                 match tag {
                     DW_TAG_structure_type => {
@@ -170,6 +171,7 @@ impl DIFix {
             LLVMMetadataKind::LLVMDIDerivedTypeMetadataKind => {
                 let tag = get_tag(metadata);
 
+                #[allow(clippy::single_match)]
                 #[allow(non_upper_case_globals)]
                 match tag {
                     DW_TAG_pointer_type => {
@@ -208,7 +210,7 @@ impl DIFix {
         } else {
             value as u64
         };
-        if self.cache.hit(&key) {
+        if self.cache.hit(key) {
             trace!("{}skipping already visited node", indent);
             return;
         }
@@ -399,12 +401,8 @@ impl Cache {
         }
     }
 
-    pub fn hit(&mut self, key: &u64) -> bool {
-        if self.keys.contains(key) {
-            return true;
-        }
-        self.keys.insert(key.clone());
-        false
+    pub fn hit(&mut self, key: u64) -> bool {
+        !self.keys.insert(key)
     }
 }
 
