@@ -247,7 +247,7 @@ impl Linker {
 
             // determine whether the input is bitcode, ELF with embedded bitcode, an archive file
             // or an invalid file
-            file.read(&mut buf)
+            file.read_exact(&mut buf)
                 .map_err(|e| LinkerError::IoError(path.clone(), e))?;
             file.rewind()
                 .map_err(|e| LinkerError::IoError(path.clone(), e))?;

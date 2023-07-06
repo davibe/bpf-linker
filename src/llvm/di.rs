@@ -271,7 +271,7 @@ impl DIFix {
             }
         }
 
-        self.node_stack.pop();
+        self.node_stack.pop().unwrap();
     }
 
     pub unsafe fn run(&mut self) {
