@@ -33,6 +33,8 @@ pub fn connect() {
     let _ = my_function(3, 4);
     let _ = my_function(5, 6);
     let _ = my_function(7, 8);
+
+    let _ = const_generic::<42>(1);
 }
 
 pub trait Add<Rhs = Self> {
@@ -47,6 +49,13 @@ impl Add for u32 {
     fn add(self, other: Self) -> Self::Output {
         self + other
     }
+}
+
+#[inline(never)]
+fn const_generic<const N: usize>(m: usize) -> usize {
+    let mut n = N;
+    (0..512).for_each(|_| n += m);
+    n
 }
 
 #[inline(never)]
@@ -69,3 +78,4 @@ pub fn my_function<T: Add<Output = T> + Copy>(x: T, y: T) -> T {
 // CHECK: name: "Foo_3C_u32_3E_"
 // CHECK: name: "Bar_3C_di_generics_3A__3A_Foo_3C_u32_3E__3E_"
 // CHECK: name: "my_function_3C_u32_3E_"
+// CHECK: name: "const_generic_3C_42_3E_"
