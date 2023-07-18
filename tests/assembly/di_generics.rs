@@ -9,6 +9,14 @@ extern crate loop_panic_handler;
 
 use core::ops::Add;
 
+trait Dummy {
+    fn dummy(&mut self);
+}
+
+trait Sum {
+    fn sum(&self) -> isize;
+}
+
 #[derive(Clone, Copy)]
 struct Foo<T> {
     x: T,
@@ -36,14 +44,6 @@ struct Bar<T> {
     x: T,
 }
 
-trait Dummy {
-    fn dummy(&mut self);
-}
-
-trait Sum {
-    fn sum(&self) -> isize;
-}
-
 impl<T> Dummy for Bar<T>
 where
     T: Add<Output = T> + Copy,
@@ -61,6 +61,28 @@ where
         let mut s = 0;
         self.x.as_ref().iter().for_each(|&b| s += b as isize);
         s
+    }
+}
+
+enum Blop<X, Y> {
+    X(X),
+    Y(Y),
+}
+
+impl<X, Y> Dummy for Blop<X, Y>
+where
+    X: Add<Output = X> + Copy,
+    Y: Add<Output = Y> + Copy,
+{
+    fn dummy(&mut self) {
+        match *self {
+            Self::X(x) => {
+                x.add(x);
+            }
+            Self::Y(y) => {
+                y.add(y);
+            }
+        }
     }
 }
 
@@ -130,6 +152,14 @@ pub fn connect() {
     };
     custom_generic(&mut bar);
     // CHECK: name: "custom_generic_3C_di_generics_3A__3A_Bar_3C_di_generics_3A__3A_Foo_3C_i32_3E__3E__3E_"
+
+    let mut blop: Blop<u8, u8> = Blop::X(42);
+    custom_generic(&mut blop);
+    // CHECK: name: "custom_generic_3C_di_generics_3A__3A_Blop_3C_u8_2C__20_u8_3E__3E_"
+
+    let mut blop: Blop<u64, isize> = Blop::Y(42);
+    custom_generic(&mut blop);
+    // CHECK: name: "custom_generic_3C_di_generics_3A__3A_Blop_3C_u64_2C__20_isize_3E__3E_"
 
     let mut bar = Bar { x: [1u8, 2, 3, 4] };
     let _ = custom_generic_trait(&bar);
