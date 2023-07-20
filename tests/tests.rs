@@ -21,6 +21,13 @@ fn run_mode(target: &str, mode: &str, sysroot: Option<&Path>) {
     } else {
         panic!("no FileCheck binary found");
     };
+
+    if let Ok(bpftool) = which("bpftool") {
+        config.bpftool = Some(bpftool);
+    } else {
+        panic!("no bpftool binary found");
+    }
+
     config.mode = mode.parse().expect("Invalid mode");
     config.src_base = PathBuf::from(format!("tests/{}", mode));
     config.link_deps();
@@ -44,4 +51,5 @@ fn compile_test() {
         .expect("failed to build sysroot");
 
     run_mode(target, "assembly", Some(&directory));
+    run_mode(target, "btf", Some(&directory));
 }

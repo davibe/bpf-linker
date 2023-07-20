@@ -9,16 +9,16 @@
 // except according to those terms.
 pub use self::Mode::*;
 
+#[cfg(feature = "rustc")]
+use rustc_session;
 use std::env;
 use std::fmt;
 use std::fs::{read_dir, remove_file};
-use std::str::FromStr;
 use std::path::PathBuf;
-#[cfg(feature = "rustc")]
-use rustc_session;
+use std::str::FromStr;
 
-use test::ColorConfig;
 use runtest::dylib_env_var;
+use test::ColorConfig;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Mode {
@@ -38,6 +38,7 @@ pub enum Mode {
     Ui,
     MirOpt,
     Assembly,
+    Btf,
 }
 
 impl Mode {
@@ -74,6 +75,7 @@ impl FromStr for Mode {
             "ui" => Ok(Ui),
             "mir-opt" => Ok(MirOpt),
             "assembly" => Ok(Assembly),
+            "btf" => Ok(Btf),
             _ => Err(()),
         }
     }
@@ -81,25 +83,28 @@ impl FromStr for Mode {
 
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(match *self {
-                              CompileFail => "compile-fail",
-                              ParseFail => "parse-fail",
-                              RunFail => "run-fail",
-                              RunPass => "run-pass",
-                              RunPassValgrind => "run-pass-valgrind",
-                              Pretty => "pretty",
-                              DebugInfoGdb => "debuginfo-gdb",
-                              DebugInfoLldb => "debuginfo-lldb",
-                              Codegen => "codegen",
-                              Rustdoc => "rustdoc",
-                              CodegenUnits => "codegen-units",
-                              Incremental => "incremental",
-                              RunMake => "run-make",
-                              Ui => "ui",
-                              MirOpt => "mir-opt",
-                              Assembly => "assembly",
-                          },
-                          f)
+        fmt::Display::fmt(
+            match *self {
+                CompileFail => "compile-fail",
+                ParseFail => "parse-fail",
+                RunFail => "run-fail",
+                RunPass => "run-pass",
+                RunPassValgrind => "run-pass-valgrind",
+                Pretty => "pretty",
+                DebugInfoGdb => "debuginfo-gdb",
+                DebugInfoLldb => "debuginfo-lldb",
+                Codegen => "codegen",
+                Rustdoc => "rustdoc",
+                CodegenUnits => "codegen-units",
+                Incremental => "incremental",
+                RunMake => "run-make",
+                Ui => "ui",
+                MirOpt => "mir-opt",
+                Assembly => "assembly",
+                Btf => "btf",
+            },
+            f,
+        )
     }
 }
 
@@ -125,6 +130,9 @@ pub struct Config {
 
     /// The llvm FileCheck binary path
     pub llvm_filecheck: Option<PathBuf>,
+
+    /// The bpftool binary path
+    pub bpftool: Option<PathBuf>,
 
     /// The valgrind path
     pub valgrind_path: Option<String>,
@@ -254,7 +262,10 @@ impl Config {
         // Dependencies can be found in the environment variable. Throw everything there into the
         // link flags
         let lib_paths = env::var(varname).unwrap_or_else(|e| {
-            panic!("Cannot link to dependencies. Problem with env var '{}': {:?}", varname, e)
+            panic!(
+                "Cannot link to dependencies. Problem with env var '{}': {:?}",
+                varname, e
+            )
         });
 
         // Append to current flags if any are set, otherwise make new String
@@ -274,7 +285,8 @@ impl Config {
     /// the parent crate.
     pub fn clean_rmeta(&self) {
         if self.target_rustcflags.is_some() {
-            for directory in self.target_rustcflags
+            for directory in self
+                .target_rustcflags
                 .as_ref()
                 .unwrap()
                 .split_whitespace()
@@ -293,7 +305,9 @@ impl Config {
 
     #[cfg(feature = "tmp")]
     pub fn tempdir(mut self) -> ConfigWithTemp {
-        let tmp = tempfile::Builder::new().prefix("compiletest").tempdir()
+        let tmp = tempfile::Builder::new()
+            .prefix("compiletest")
+            .tempdir()
             .expect("failed to create temporary directory");
         self.build_base = tmp.path().to_owned();
         config_tempdir::ConfigWithTemp {
@@ -305,8 +319,8 @@ impl Config {
 
 #[cfg(feature = "tmp")]
 mod config_tempdir {
-    use tempfile;
     use std::ops;
+    use tempfile;
 
     pub struct ConfigWithTemp {
         pub config: super::Config,
@@ -331,7 +345,6 @@ mod config_tempdir {
 #[cfg(feature = "tmp")]
 pub use self::config_tempdir::ConfigWithTemp;
 
-
 impl Default for Config {
     fn default() -> Config {
         #[cfg(feature = "rustc")]
@@ -347,6 +360,7 @@ impl Default for Config {
             valgrind_path: None,
             force_valgrind: false,
             llvm_filecheck: None,
+            bpftool: None,
             src_base: PathBuf::from("tests/run-pass"),
             build_base: env::temp_dir(),
             stage_id: "stage-id".to_owned(),
