@@ -1884,8 +1884,15 @@ actual:\n\
         rustc.arg("-C").arg("link-arg=--emit=obj");
         // without debug info no BTF is generated so we default it
         rustc.arg("-C").arg("debuginfo=2");
+
         // without this option LLVM segaults
-        rustc.arg("-C").arg("lto=true");
+        if !rustc
+            .get_args()
+            .filter_map(|arg| arg.to_str())
+            .any(|arg_str| arg_str.starts_with("lto="))
+        {
+            rustc.arg("-C").arg("lto=true");
+        }
 
         (self.compose_and_run_compiler(rustc, None), output_path)
     }

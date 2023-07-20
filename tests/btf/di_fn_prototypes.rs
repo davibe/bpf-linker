@@ -1,4 +1,3 @@
-// Verify that the linker correctly massages map names.
 #![no_std]
 #![no_main]
 
