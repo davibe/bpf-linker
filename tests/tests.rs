@@ -50,6 +50,16 @@ fn compile_test() {
         .build_from_source(&rustc_src)
         .expect("failed to build sysroot");
     run_mode(target, "assembly", Some(&directory));
+}
+
+#[test]
+fn btf_test() {
+    // to selectively run this test run cargo test --test tests -- btf_test --ignore
+    let target = "bpfel-unknown-none";
+    let rustc =
+        std::process::Command::new(env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc")));
+    let rustc_src = rustc_build_sysroot::rustc_sysroot_src(rustc)
+        .expect("could not determine sysroot source directory");
 
     // to generate BTF we need a specific sysroot with core compiled with DI
     let mut sysroot_di = env::current_dir().expect("could not determine current directory");
