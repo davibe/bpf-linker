@@ -49,7 +49,16 @@ fn compile_test() {
         .sysroot_config(rustc_build_sysroot::SysrootConfig::NoStd)
         .build_from_source(&rustc_src)
         .expect("failed to build sysroot");
-
     run_mode(target, "assembly", Some(&directory));
-    run_mode(target, "btf", Some(&directory));
+
+    // to generate BTF we need a specific sysroot with core compiled with DI
+    let mut sysroot_di = env::current_dir().expect("could not determine current directory");
+    let () = sysroot_di.push("target/sysroot-di");
+    let () = rustc_build_sysroot::SysrootBuilder::new(&sysroot_di, target)
+        .build_mode(rustc_build_sysroot::BuildMode::Build)
+        .sysroot_config(rustc_build_sysroot::SysrootConfig::NoStd)
+        .rustflag("-Cdebuginfo=2")
+        .build_from_source(&rustc_src)
+        .expect("failed to build sysroot");
+    run_mode(target, "btf", Some(&sysroot_di));
 }
