@@ -1873,6 +1873,7 @@ actual:\n\
         // This works with both `--emit asm` (as default output name for the assembly)
         // and `ptx-linker` because the latter can write output at requested location.
         let output_path = self.output_base_name().with_extension("");
+        let dump_path = self.output_base_name().with_extension("ll");
 
         let output_file = TargetLocation::ThisFile(output_path.clone());
 
@@ -1884,6 +1885,11 @@ actual:\n\
         rustc.arg("-C").arg("link-arg=--emit=obj");
         // without debug info no BTF is generated so we default it
         rustc.arg("-C").arg("debuginfo=2");
+        // enable dump module, easier for debugging
+        rustc.arg("-C").arg(format!(
+            "link-arg=--dump-module={}",
+            dump_path.to_string_lossy()
+        ));
 
         (self.compose_and_run_compiler(rustc, None), output_path)
     }
