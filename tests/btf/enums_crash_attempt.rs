@@ -132,7 +132,7 @@ unsafe fn test_9() -> E3 {
         E3::B
     }
 }
-// CHECK: ENUM 'E3'
+// CHECK: ENUM 'E3' encoding=UNSIGNED
 // CHECK-NEXT: 'A' val=0
 // CHECK-NEXT: 'B' val=1
 // CHECK-NEXT: 'C' val=2
@@ -154,7 +154,7 @@ unsafe fn test_10() -> E4 {
         E4::Z
     }
 }
-// CHECK: ENUM 'E4'
+// CHECK: ENUM 'E4' encoding=UNSIGNED
 // CHECK-NEXT: 'X' val=0
 // CHECK-NEXT: 'Y' val=1
 // CHECK-NEXT: 'Z' val=2
@@ -176,7 +176,7 @@ unsafe fn test_11() -> E5 {
         E5::Z
     }
 }
-// CHECK: ENUM 'E5'
+// CHECK: ENUM 'E5' encoding=SIGNED
 // CHECK-NEXT: 'X' val=0
 // CHECK-NEXT: 'Y' val=1
 // CHECK-NEXT: 'Z' val=2
@@ -198,7 +198,7 @@ unsafe fn test_12() -> E6 {
         E6::Z
     }
 }
-// CHECK: ENUM 'E6'
+// CHECK: ENUM 'E6' encoding=SIGNED
 // CHECK-NEXT: 'X' val=-42
 // CHECK-NEXT: 'Y' val=-41
 // CHECK-NEXT: 'Z' val=-40
@@ -220,7 +220,7 @@ unsafe fn test_13() -> E7 {
         E7::Z
     }
 }
-// CHECK: ENUM64 'E7'
+// CHECK: ENUM64 'E7' encoding=SIGNED
 // CHECK-NEXT: 'X' val=-42
 // CHECK-NEXT: 'Y' val=-41
 // CHECK-NEXT: 'Z' val=-40
@@ -242,7 +242,7 @@ unsafe fn test_14() -> E8 {
         E8::Z
     }
 }
-// CHECK: ENUM64 'E8'
+// CHECK: ENUM64 'E8' encoding=SIGNED
 // CHECK-NEXT: 'X' val=-42
 // CHECK-NEXT: 'Y' val=-41
 // CHECK-NEXT: 'Z' val=-40
