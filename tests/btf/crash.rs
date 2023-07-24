@@ -1,5 +1,3 @@
-// compile-flags: -C lto=false
-
 #![no_std]
 #![no_main]
 
